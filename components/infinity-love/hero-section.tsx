@@ -223,7 +223,7 @@ export default function HeroSection() {
             variants={fadeUp}
             className="flex flex-col sm:flex-row gap-3 w-full max-w-sm"
           >
-            <Link href="/create" className="flex-1">
+            <Link href="https://pay.cakto.com.br/shr6o8n_899154" className="flex-1">
               <motion.div
                 whileHover={{
                   scale: 1.03,
