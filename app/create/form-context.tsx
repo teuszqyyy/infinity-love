@@ -6,6 +6,7 @@ export interface SongData {
   title: string
   artist: string
   coverUrl?: string
+  previewUrl?: string
 }
 
 export interface FormData {
