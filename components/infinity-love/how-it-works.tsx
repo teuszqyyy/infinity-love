@@ -146,7 +146,7 @@ export default function HowItWorks() {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="flex justify-center mt-12"
         >
-          <NextLink href="/create">
+          <NextLink href="https://pay.cakto.com.br/shr6o8n_899154">
             <motion.div
               whileHover={{
                 scale: 1.04,
