@@ -1,9 +1,10 @@
 "use client"
 
 import { motion, AnimatePresence } from "framer-motion"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useFormData } from "../form-context"
 import type { SongData } from "../form-context"
+import { searchSpotify } from "@/lib/actions/spotify"
 
 const PINK = "#EC4899"
 const PURPLE = "#A855F7"
@@ -57,10 +58,14 @@ function MusicCard({ song, selected, onSelect }: { song: SongData; selected: boo
     >
       {/* Cover art */}
       <div
-        className="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center text-white font-bold text-sm"
+        className="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center text-white font-bold text-sm overflow-hidden"
         style={{ background: gradients[gradIndex] }}
       >
-        {initials}
+        {song.coverUrl ? (
+          <img src={song.coverUrl} alt={song.title} className="w-full h-full object-cover" />
+        ) : (
+          initials
+        )}
       </div>
 
       <div className="flex-1 min-w-0">
@@ -104,14 +109,31 @@ function MusicCard({ song, selected, onSelect }: { song: SongData; selected: boo
 export default function Step3Music({ onNext, onBack }: StepProps) {
   const { data, update } = useFormData()
   const [query, setQuery] = useState("")
+  const [results, setResults] = useState<SongData[]>(SUGGESTED_SONGS)
+  const [loading, setLoading] = useState(false)
 
-  const filtered = query.trim().length > 0
-    ? SUGGESTED_SONGS.filter(
-        (s) =>
-          s.title.toLowerCase().includes(query.toLowerCase()) ||
-          s.artist.toLowerCase().includes(query.toLowerCase())
-      )
-    : SUGGESTED_SONGS
+  useEffect(() => {
+    if (query.trim().length === 0) {
+      setResults(SUGGESTED_SONGS)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setLoading(true)
+      try {
+        const songs = await searchSpotify(query)
+        if (songs && songs.length > 0) {
+          setResults(songs)
+        }
+      } catch (error) {
+        console.error("Failed to search spotify", error)
+      } finally {
+        setLoading(false)
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [query])
 
   const handleCustom = () => {
     if (query.trim()) {
@@ -239,12 +261,14 @@ export default function Step3Music({ onNext, onBack }: StepProps) {
 
         {/* Song list */}
         <div className="flex flex-col gap-2 max-h-72 overflow-y-auto pr-1 scrollbar-none" style={{ scrollbarWidth: "none" }}>
-          {filtered.length === 0 ? (
+          {loading ? (
+            <p className="text-muted-foreground text-sm text-center py-6">Buscando músicas...</p>
+          ) : results.length === 0 ? (
             <p className="text-muted-foreground text-sm text-center py-6">Nenhuma musica encontrada. Use o botao &ldquo;Usar essa&rdquo; para adicionar.</p>
           ) : (
-            filtered.map((song) => (
+            results.map((song, idx) => (
               <MusicCard
-                key={`${song.title}-${song.artist}`}
+                key={`${song.title}-${song.artist}-${idx}`}
                 song={song}
                 selected={data.song?.title === song.title && data.song?.artist === song.artist}
                 onSelect={() => update({ song })}
