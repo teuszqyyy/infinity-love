@@ -1,46 +1,19 @@
-import { notFound } from "next/navigation"
 import { createServerSupabase } from "@/lib/supabase/server"
 import PageContent from "./page-content"
-
-export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const supabase = createServerSupabase()
-  const { data: page } = await supabase
-    .from("pages")
-    .select("person_name, cover_photo_url")
-    .eq("slug", params.slug)
-    .single()
-
-  if (!page) {
-    return {
-      title: "Página não encontrada — InfinityLove",
-    }
-  }
-
-  return {
-    title: `Para ${page.person_name} — InfinityLove`,
-    description: "Uma surpresa especial feita com amor...",
-    openGraph: {
-      title: `Para ${page.person_name} — InfinityLove`,
-      description: "Uma surpresa especial feita com amor...",
-      type: "website",
-      images: page.cover_photo_url ? [page.cover_photo_url] : [],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: `Para ${page.person_name} — InfinityLove`,
-      description: "Uma surpresa especial feita com amor...",
-      images: page.cover_photo_url ? [page.cover_photo_url] : [],
-    },
-  }
-}
+import { notFound } from "next/navigation"
 
 export default async function DynamicPage({ params }: { params: { slug: string } }) {
   const supabase = createServerSupabase()
-  const { data: page } = await supabase
+  
+  const { data: page, error } = await supabase
     .from("pages")
     .select("*")
     .eq("slug", params.slug)
     .single()
+
+  console.log("SLUG:", params.slug)
+  console.log("PAGE:", JSON.stringify(page))
+  console.log("ERROR:", JSON.stringify(error))
 
   if (!page) {
     notFound()
