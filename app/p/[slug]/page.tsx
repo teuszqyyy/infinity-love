@@ -8,7 +8,6 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     .from("pages")
     .select("person_name, cover_photo_url")
     .eq("slug", params.slug)
-    .eq("is_published", true)
     .single()
 
   if (!page) {
@@ -41,7 +40,6 @@ export default async function DynamicPage({ params }: { params: { slug: string }
     .from("pages")
     .select("*")
     .eq("slug", params.slug)
-    .eq("is_published", true)
     .single()
 
   if (!page) {
