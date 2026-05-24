@@ -157,7 +157,7 @@ export default function CopyBlack() {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="flex justify-center mt-14"
         >
-          <Link href="/create">
+          <Link href="https://pay.cakto.com.br/shr6o8n_899154">
             <motion.div
               whileHover={{
                 scale: 1.04,
