@@ -1,3 +1,6 @@
+import { notFound } from "next/navigation"
+import { createServerSupabase } from "@/lib/supabase/server"
+import PageContent from "./page-content"
 export default async function DynamicPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const supabase = createServerSupabase()
