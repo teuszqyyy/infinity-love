@@ -1,7 +1,7 @@
 "use client"
 
 import { motion, AnimatePresence } from "framer-motion"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useFormData } from "../form-context"
 import type { SongData } from "../form-context"
 import { searchSpotify } from "@/lib/actions/spotify"
@@ -13,21 +13,6 @@ interface StepProps {
   onNext: () => void
   onBack: () => void
 }
-
-const SUGGESTED_SONGS: SongData[] = [
-  { title: "Perfect", artist: "Ed Sheeran" },
-  { title: "All of Me", artist: "John Legend" },
-  { title: "Thinking Out Loud", artist: "Ed Sheeran" },
-  { title: "A Thousand Years", artist: "Christina Perri" },
-  { title: "Te Amo", artist: "Rihanna" },
-  { title: "Photograph", artist: "Ed Sheeran" },
-  { title: "Can't Help Falling in Love", artist: "Elvis Presley" },
-  { title: "Lover", artist: "Taylor Swift" },
-  { title: "Die For You", artist: "The Weeknd" },
-  { title: "Gravity", artist: "John Mayer" },
-  { title: "Você Me Faz Bem", artist: "Padre Fábio de Melo" },
-  { title: "Esperando por Ti", artist: "Gusttavo Lima" },
-]
 
 function MusicCard({ song, selected, onSelect }: { song: SongData; selected: boolean; onSelect: () => void }) {
   const initials = song.artist.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
@@ -54,9 +39,7 @@ function MusicCard({ song, selected, onSelect }: { song: SongData; selected: boo
         border: `1px solid ${selected ? "rgba(236,72,153,0.4)" : "rgba(255,255,255,0.07)"}`,
         boxShadow: selected ? `0 0 20px rgba(236,72,153,0.15)` : "none",
       }}
-      aria-pressed={selected}
     >
-      {/* Cover art */}
       <div
         className="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center text-white font-bold text-sm overflow-hidden"
         style={{ background: gradients[gradIndex] }}
@@ -71,9 +54,11 @@ function MusicCard({ song, selected, onSelect }: { song: SongData; selected: boo
       <div className="flex-1 min-w-0">
         <p className="text-foreground text-sm font-semibold truncate">{song.title}</p>
         <p className="text-muted-foreground text-xs mt-0.5 truncate">{song.artist}</p>
+        {song.previewUrl && (
+          <p className="text-xs mt-0.5" style={{ color: "#1DB954" }}>● preview disponível</p>
+        )}
       </div>
 
-      {/* Selected indicator */}
       <AnimatePresence>
         {selected && (
           <motion.div
@@ -83,22 +68,17 @@ function MusicCard({ song, selected, onSelect }: { song: SongData; selected: boo
             className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
             style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})` }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
               <polyline points="20 6 9 17 4 12" />
             </svg>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Equalizer when not selected */}
       {!selected && (
         <div className="flex items-end gap-0.5 h-4 flex-shrink-0">
           {[3, 6, 4, 8, 5].map((h, i) => (
-            <div
-              key={i}
-              className="w-1 rounded-sm"
-              style={{ height: `${h}px`, background: "rgba(255,255,255,0.2)" }}
-            />
+            <div key={i} className="w-1 rounded-sm" style={{ height: `${h}px`, background: "rgba(255,255,255,0.2)" }} />
           ))}
         </div>
       )}
@@ -109,37 +89,51 @@ function MusicCard({ song, selected, onSelect }: { song: SongData; selected: boo
 export default function Step3Music({ onNext, onBack }: StepProps) {
   const { data, update } = useFormData()
   const [query, setQuery] = useState("")
-  const [results, setResults] = useState<SongData[]>(SUGGESTED_SONGS)
+  const [results, setResults] = useState<SongData[]>([])
   const [loading, setLoading] = useState(false)
+  const [searched, setSearched] = useState(false)
+  const [errorMsg, setErrorMsg] = useState("")
+  const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => {
-    if (query.trim().length === 0) {
-      setResults(SUGGESTED_SONGS)
+  const handleQueryChange = (value: string) => {
+    setQuery(value)
+    setErrorMsg("")
+
+    if (debounceTimer) clearTimeout(debounceTimer)
+
+    if (value.trim().length < 2) {
+      setResults([])
+      setSearched(false)
       return
     }
 
     const timer = setTimeout(async () => {
       setLoading(true)
+      setSearched(true)
       try {
-        const songs = await searchSpotify(query)
-        if (songs && songs.length > 0) {
-          setResults(songs)
-        }
-      } catch (error) {
-        console.error("Failed to search spotify", error)
+        const songs = await searchSpotify(value.trim())
+        setResults(songs || [])
+      } catch (error: any) {
+        console.error("Spotify search error:", error)
+        setErrorMsg("Erro ao buscar. Verifique as credenciais do Spotify.")
+        setResults([])
       } finally {
         setLoading(false)
       }
-    }, 500)
+    }, 600)
 
-    return () => clearTimeout(timer)
-  }, [query])
+    setDebounceTimer(timer)
+  }
 
   const handleCustom = () => {
     if (query.trim()) {
       const parts = query.split("-").map((s) => s.trim())
       update({
-        song: { title: parts[0] || query, artist: parts[1] || "Artista personalizado" },
+        song: {
+          title: parts[0] || query,
+          artist: parts[1] || "Artista personalizado",
+          previewUrl: undefined,
+        },
       })
     }
   }
@@ -152,13 +146,6 @@ export default function Step3Music({ onNext, onBack }: StepProps) {
       transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
       className="flex flex-col items-center min-h-[80vh] px-4 py-8"
     >
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: "radial-gradient(ellipse 70% 50% at 50% 30%, rgba(29,185,84,0.07) 0%, transparent 60%), radial-gradient(ellipse 50% 40% at 80% 70%, rgba(168,85,247,0.08) 0%, transparent 55%)",
-        }}
-      />
-
       <div className="relative z-10 w-full max-w-md flex flex-col gap-6">
         <div className="text-center">
           <motion.h1
@@ -167,13 +154,7 @@ export default function Step3Music({ onNext, onBack }: StepProps) {
             className="font-serif text-3xl sm:text-4xl font-bold text-foreground text-balance leading-tight mb-3"
           >
             Qual a{" "}
-            <span
-              style={{
-                background: `linear-gradient(90deg, ${PINK}, ${PURPLE})`,
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
+            <span style={{ background: `linear-gradient(90deg, ${PINK}, ${PURPLE})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
               música de vocês?
             </span>
           </motion.h1>
@@ -184,25 +165,17 @@ export default function Step3Music({ onNext, onBack }: StepProps) {
 
         {/* Search */}
         <div className="relative">
-          <svg
-            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-            aria-hidden="true"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar música ou artista..."
-            className="w-full pl-10 pr-4 py-3.5 rounded-2xl text-sm text-foreground placeholder:text-muted-foreground/50 outline-none"
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.1)",
-            }}
-            aria-label="Buscar música"
+            onChange={(e) => handleQueryChange(e.target.value)}
+            placeholder="Digite o nome da música ou artista..."
+            className="w-full pl-10 pr-24 py-3.5 rounded-2xl text-sm text-foreground placeholder:text-muted-foreground/50 outline-none"
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
           />
           {query && (
             <motion.button
@@ -217,6 +190,11 @@ export default function Step3Music({ onNext, onBack }: StepProps) {
           )}
         </div>
 
+        {/* Error */}
+        {errorMsg && (
+          <p className="text-red-400 text-xs text-center">{errorMsg}</p>
+        )}
+
         {/* Selected preview */}
         <AnimatePresence>
           {data.song && (
@@ -225,31 +203,24 @@ export default function Step3Music({ onNext, onBack }: StepProps) {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               className="rounded-2xl p-4 flex items-center gap-4 overflow-hidden"
-              style={{
-                background: `linear-gradient(135deg, rgba(236,72,153,0.1), rgba(168,85,247,0.1))`,
-                border: `1px solid rgba(236,72,153,0.3)`,
-              }}
+              style={{ background: `linear-gradient(135deg, rgba(236,72,153,0.1), rgba(168,85,247,0.1))`, border: `1px solid rgba(236,72,153,0.3)` }}
             >
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})` }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" aria-hidden="true">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})` }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                   <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
                 </svg>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground mb-0.5">Musica selecionada</p>
+                <p className="text-xs text-muted-foreground mb-0.5">Música selecionada</p>
                 <p className="text-foreground text-sm font-bold truncate">{data.song.title}</p>
                 <p className="text-muted-foreground text-xs truncate">{data.song.artist}</p>
+                {(data.song as any).previewUrl && (
+                  <p className="text-xs mt-0.5" style={{ color: "#1DB954" }}>● vai tocar na página ✓</p>
+                )}
               </div>
-              {/* Equalizer animation */}
               <div className="flex items-end gap-0.5 h-5 flex-shrink-0">
                 {[4, 8, 5, 10, 6].map((h, i) => (
-                  <motion.div
-                    key={i}
-                    className="w-1 rounded-sm"
-                    style={{ background: i % 2 === 0 ? PINK : PURPLE }}
+                  <motion.div key={i} className="w-1 rounded-sm" style={{ background: i % 2 === 0 ? PINK : PURPLE }}
                     animate={{ height: [`${h}px`, `${h + 6}px`, `${h}px`] }}
                     transition={{ duration: 0.5 + i * 0.1, repeat: Infinity, delay: i * 0.08 }}
                   />
@@ -260,11 +231,22 @@ export default function Step3Music({ onNext, onBack }: StepProps) {
         </AnimatePresence>
 
         {/* Song list */}
-        <div className="flex flex-col gap-2 max-h-72 overflow-y-auto pr-1 scrollbar-none" style={{ scrollbarWidth: "none" }}>
+        <div className="flex flex-col gap-2 max-h-72 overflow-y-auto pr-1" style={{ scrollbarWidth: "none" }}>
           {loading ? (
-            <p className="text-muted-foreground text-sm text-center py-6">Buscando músicas...</p>
+            <div className="text-center py-8">
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="w-6 h-6 rounded-full border-2 border-white/10 border-t-pink-500 mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">Buscando no Spotify...</p>
+            </div>
+          ) : !searched ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground text-sm">Digite o nome de uma música ou artista para buscar</p>
+            </div>
           ) : results.length === 0 ? (
-            <p className="text-muted-foreground text-sm text-center py-6">Nenhuma musica encontrada. Use o botao &ldquo;Usar essa&rdquo; para adicionar.</p>
+            <div className="text-center py-8">
+              <p className="text-muted-foreground text-sm">Nenhuma música encontrada.</p>
+              <p className="text-muted-foreground text-xs mt-1">Use "Usar essa" para adicionar manualmente.</p>
+            </div>
           ) : (
             results.map((song, idx) => (
               <MusicCard
@@ -279,22 +261,14 @@ export default function Step3Music({ onNext, onBack }: StepProps) {
 
         {/* Buttons */}
         <div className="flex gap-3">
-          <motion.button
-            onClick={onBack}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
+          <motion.button onClick={onBack} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
             className="flex-1 py-4 rounded-2xl text-sm font-semibold text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
-            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
-          >
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
             Voltar
           </motion.button>
-          <motion.button
-            onClick={onNext}
-            whileHover={{ scale: 1.03, boxShadow: `0 0 40px rgba(236,72,153,0.5)` }}
-            whileTap={{ scale: 0.97 }}
+          <motion.button onClick={onNext} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
             className="flex-[2] py-4 rounded-2xl text-sm font-bold text-white uppercase tracking-wide cursor-pointer"
-            style={{ background: `linear-gradient(135deg, ${PINK} 0%, ${PURPLE} 100%)`, boxShadow: `0 0 24px rgba(236,72,153,0.35)` }}
-          >
+            style={{ background: `linear-gradient(135deg, ${PINK} 0%, ${PURPLE} 100%)`, boxShadow: `0 0 24px rgba(236,72,153,0.35)` }}>
             {data.song ? "Continuar" : "Pular por agora"}
           </motion.button>
         </div>
