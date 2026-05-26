@@ -1,53 +1,21 @@
 "use server"
 
 export async function searchSpotify(query: string) {
-  const clientId = process.env.SPOTIFY_CLIENT_ID
-  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET
-
-  if (!clientId || !clientSecret) {
-    throw new Error("Credenciais não configuradas: " + clientId + " / " + (clientSecret ? "ok" : "vazio"))
-  }
-
-  const credentials = btoa(clientId + ":" + clientSecret)
-
-  const tokenResponse = await fetch("https://accounts.spotify.com/api/token", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "Authorization": "Basic " + credentials,
-    },
-    body: "grant_type=client_credentials",
-    cache: "no-store",
-  })
-
-  if (!tokenResponse.ok) {
-    const tokenError = await tokenResponse.text()
-    throw new Error("Token falhou: " + tokenResponse.status + " - " + tokenError)
-  }
-
-  const tokenData = await tokenResponse.json()
-  const accessToken = tokenData.access_token
-
-  const searchResponse = await fetch(
-    "https://api.spotify.com/v1/search?q=" + encodeURIComponent(query) + "&type=track&limit=10",
-    {
-      headers: {
-        "Authorization": "Bearer " + accessToken,
-      },
-    }
+  const response = await fetch(
+    "https://itunes.apple.com/search?term=" + encodeURIComponent(query) + "&media=music&limit=10&country=BR",
+    { cache: "no-store" }
   )
 
-  if (!searchResponse.ok) {
-    const searchError = await searchResponse.text()
-    throw new Error("Busca falhou: " + searchResponse.status + " - " + searchError)
+  if (!response.ok) {
+    throw new Error("Erro ao buscar músicas")
   }
 
-  const searchData = await searchResponse.json()
+  const data = await response.json()
 
-  return searchData.tracks.items.map((track: any) => ({
-    title: track.name,
-    artist: track.artists.map((a: any) => a.name).join(", "),
-    coverUrl: track.album.images[0]?.url,
-    previewUrl: track.preview_url,
+  return data.results.map((track: any) => ({
+    title: track.trackName,
+    artist: track.artistName,
+    coverUrl: track.artworkUrl100,
+    previewUrl: track.previewUrl,
   }))
 }
