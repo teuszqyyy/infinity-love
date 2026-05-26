@@ -48,7 +48,8 @@ function Section({ children, className = "" }: { children: React.ReactNode; clas
 
 export default function PageContent({ data }: { data: PageRow }) {
   const elapsed = useLiveCounter(data.relationship_start)
-  const [playing, setPlaying] = useState(true)
+  const [playing, setPlaying] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
   const pad = (n: number) => String(n).padStart(2, "0")
 
   return (
@@ -115,9 +116,9 @@ export default function PageContent({ data }: { data: PageRow }) {
               style={{ background: `linear-gradient(135deg, rgba(236,72,153,0.2), rgba(168,85,247,0.2))` }}
             />
           )}
-          
+
           <div className="absolute inset-x-0 bottom-0 h-64 z-20" style={{ background: "linear-gradient(to top, #070707 20%, transparent)" }} />
-          
+
           <div className="absolute bottom-16 left-0 right-0 z-30 px-6 text-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -138,7 +139,7 @@ export default function PageContent({ data }: { data: PageRow }) {
             animate={{ y: [0, 10, 0] }}
             transition={{ duration: 2, repeat: Infinity }}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" opacity={0.5} aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" opacity={0.5}>
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </motion.div>
@@ -149,15 +150,15 @@ export default function PageContent({ data }: { data: PageRow }) {
           <Section>
             <div className="text-center mb-8">
               <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity }} className="inline-block mb-2">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill={PINK} aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill={PINK}>
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                 </svg>
               </motion.div>
               <h2 className="font-serif text-2xl font-bold text-white">Tempo juntos</h2>
             </div>
-            
+
             <div className="grid grid-cols-4 gap-3">
-              {[{ v: elapsed.days, l: "dias" }, { v: elapsed.hours, l: "horas" }, { v: elapsed.minutes, l: "min" }, { v: elapsed.seconds, l: "seg" }].map((item, i) => (
+              {[{ v: elapsed.days, l: "dias" }, { v: elapsed.hours, l: "horas" }, { v: elapsed.minutes, l: "min" }, { v: elapsed.seconds, l: "seg" }].map((item) => (
                 <div key={item.l} className="relative rounded-2xl p-4 text-center overflow-hidden" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
                   <div className="absolute inset-0 opacity-20" style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})` }} />
                   <p className="relative font-bold text-2xl md:text-3xl text-white mb-1">{item.l === "dias" ? item.v : pad(item.v)}</p>
@@ -171,24 +172,36 @@ export default function PageContent({ data }: { data: PageRow }) {
         {/* Music Section */}
         {data.song_title && (
           <Section>
+            {(data as any).song_preview_url && (
+              <audio ref={audioRef} src={(data as any).song_preview_url} loop />
+            )}
             <div className="rounded-3xl p-6 relative overflow-hidden" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", boxShadow: `0 20px 40px rgba(0,0,0,0.4)` }}>
               <div className="absolute top-0 left-0 w-full h-1" style={{ background: `linear-gradient(90deg, ${PINK}, ${PURPLE})`, opacity: 0.5 }} />
-              
               <div className="flex items-center gap-5">
                 <div className="w-16 h-16 rounded-2xl flex-shrink-0 flex items-center justify-center relative overflow-hidden">
                   <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})`, opacity: 0.2 }} />
                   <div className="absolute inset-0 backdrop-blur-md" />
-                  <svg className="relative z-10" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" aria-hidden="true">
+                  <svg className="relative z-10" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                     <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
                   </svg>
                 </div>
-                
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-lg font-bold truncate">{data.song_title}</p>
                   <p className="text-white/60 text-sm truncate">{data.song_artist}</p>
-                  
                   <div className="mt-3 flex items-center gap-3">
-                    <button onClick={() => setPlaying(!playing)} className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer" style={{ background: "white" }}>
+                    <button
+                      onClick={() => {
+                        if (!audioRef.current) return
+                        if (playing) {
+                          audioRef.current.pause()
+                        } else {
+                          audioRef.current.play()
+                        }
+                        setPlaying(!playing)
+                      }}
+                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer"
+                      style={{ background: "white" }}
+                    >
                       {playing ? (
                         <svg width="10" height="10" viewBox="0 0 12 12" fill="#070707"><rect x="2" y="1" width="3" height="10" rx="1" /><rect x="7" y="1" width="3" height="10" rx="1" /></svg>
                       ) : (
@@ -196,7 +209,9 @@ export default function PageContent({ data }: { data: PageRow }) {
                       )}
                     </button>
                     <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
-                      <motion.div className="h-full rounded-full" style={{ background: `linear-gradient(90deg, ${PINK}, ${PURPLE})` }}
+                      <motion.div
+                        className="h-full rounded-full"
+                        style={{ background: `linear-gradient(90deg, ${PINK}, ${PURPLE})` }}
                         animate={playing ? { width: ["10%", "100%"] } : { width: "10%" }}
                         transition={playing ? { duration: 30, ease: "linear", repeat: Infinity } : {}}
                       />
