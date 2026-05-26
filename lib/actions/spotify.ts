@@ -8,16 +8,15 @@ export async function searchSpotify(query: string) {
     throw new Error("Spotify credentials are not configured")
   }
 
-  // Get token
+  const credentials = btoa(clientId + ":" + clientSecret)
+
   const tokenResponse = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+      "Authorization": "Basic " + credentials,
     },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-    }),
+    body: "grant_type=client_credentials",
     cache: "no-store",
   })
 
@@ -28,12 +27,11 @@ export async function searchSpotify(query: string) {
   const tokenData = await tokenResponse.json()
   const accessToken = tokenData.access_token
 
-  // Search
   const searchResponse = await fetch(
-    `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`,
+    "https://api.spotify.com/v1/search?q=" + encodeURIComponent(query) + "&type=track&limit=10",
     {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        "Authorization": "Bearer " + accessToken,
       },
     }
   )
@@ -43,6 +41,7 @@ export async function searchSpotify(query: string) {
   }
 
   const searchData = await searchResponse.json()
+
   return searchData.tracks.items.map((track: any) => ({
     title: track.name,
     artist: track.artists.map((a: any) => a.name).join(", "),
