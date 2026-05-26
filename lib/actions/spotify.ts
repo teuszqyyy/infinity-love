@@ -5,7 +5,7 @@ export async function searchSpotify(query: string) {
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET
 
   if (!clientId || !clientSecret) {
-    throw new Error("Spotify credentials are not configured")
+    throw new Error("Credenciais não configuradas: " + clientId + " / " + (clientSecret ? "ok" : "vazio"))
   }
 
   const credentials = btoa(clientId + ":" + clientSecret)
@@ -21,7 +21,8 @@ export async function searchSpotify(query: string) {
   })
 
   if (!tokenResponse.ok) {
-    throw new Error("Failed to get Spotify token")
+    const tokenError = await tokenResponse.text()
+    throw new Error("Token falhou: " + tokenResponse.status + " - " + tokenError)
   }
 
   const tokenData = await tokenResponse.json()
@@ -37,7 +38,8 @@ export async function searchSpotify(query: string) {
   )
 
   if (!searchResponse.ok) {
-    throw new Error("Failed to search Spotify")
+    const searchError = await searchResponse.text()
+    throw new Error("Busca falhou: " + searchResponse.status + " - " + searchError)
   }
 
   const searchData = await searchResponse.json()
