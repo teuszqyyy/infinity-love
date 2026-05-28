@@ -1,13 +1,15 @@
 "use client"
 
 import { motion, AnimatePresence } from "framer-motion"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useFormData } from "../form-context"
 import { publishPage } from "@/lib/actions/publish"
+import { validateToken, markTokenAsUsed } from "@/lib/actions/tokens"
 
 const PINK = "#EC4899"
 const PURPLE = "#A855F7"
+const CHECKOUT_URL = "https://pay.cakto.com.br/shr6o8n_899154"
 
 type PublishPhase = "idle" | "uploading" | "saving" | "generating" | "done" | "error"
 
@@ -223,6 +225,89 @@ function PreviewContent() {
   )
 }
 
+function PaymentGate() {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="absolute inset-0 z-40 flex items-end justify-center pb-6 px-3"
+      style={{
+        background: "linear-gradient(to top, rgba(7,7,7,0.97) 40%, rgba(7,7,7,0.85) 60%, rgba(7,7,7,0.5) 80%, transparent 100%)",
+        backdropFilter: "blur(2px)",
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ delay: 0.3, type: "spring", stiffness: 200, damping: 20 }}
+        className="w-full rounded-2xl p-5 text-center"
+        style={{
+          background: "rgba(255,255,255,0.06)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          backdropFilter: "blur(20px)",
+          boxShadow: `0 0 60px rgba(236,72,153,0.15), 0 0 120px rgba(168,85,247,0.1)`,
+        }}
+      >
+        {/* Lock icon */}
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.5, type: "spring", stiffness: 200, damping: 15 }}
+          className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3"
+          style={{ background: `linear-gradient(135deg, ${PINK}, ${PURPLE})`, boxShadow: `0 0 30px rgba(236,72,153,0.4)` }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </motion.div>
+
+        <p className="text-xs text-white/40 uppercase tracking-widest mb-1">Quase lá!</p>
+        <p className="text-base font-bold text-white mb-1">Sua surpresa está pronta! 🎉</p>
+        <p className="text-xs text-white/50 mb-4 leading-relaxed">
+          Ela vai chorar de emoção. Garanta o link agora.
+        </p>
+
+        {/* Price */}
+        <div className="rounded-xl p-3 mb-4" style={{ background: "rgba(236,72,153,0.08)", border: "1px solid rgba(236,72,153,0.15)" }}>
+          <p className="text-2xl font-bold text-white">
+            R$<span style={{ background: `linear-gradient(90deg, ${PINK}, ${PURPLE})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>19,90</span>
+          </p>
+          <p className="text-xs text-white/40 mt-0.5">pagamento único — sem mensalidade</p>
+        </div>
+
+        {/* CTA button */}
+        <motion.a
+          href={CHECKOUT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          whileHover={{ scale: 1.03, boxShadow: `0 0 50px rgba(236,72,153,0.6)` }}
+          whileTap={{ scale: 0.97 }}
+          className="block w-full py-4 rounded-2xl text-base font-bold text-white text-center cursor-pointer mb-3"
+          style={{
+            background: `linear-gradient(135deg, ${PINK} 0%, ${PURPLE} 100%)`,
+            boxShadow: `0 0 30px rgba(236,72,153,0.45)`,
+          }}
+        >
+          Desbloquear agora ♥
+        </motion.a>
+
+        <p className="text-xs text-white/30">Após o pagamento você será redirecionado automaticamente</p>
+
+        {/* Trust badges */}
+        <div className="flex flex-wrap items-center justify-center gap-2 mt-3 text-xs text-white/25">
+          <span>🔒 Pagamento seguro</span>
+          <span>•</span>
+          <span>✅ Link eterno</span>
+          <span>•</span>
+          <span>⚡ Liberado na hora</span>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 function SuccessState({ slug, personName }: { slug: string; personName: string }) {
   const [copied, setCopied] = useState(false)
   const router = useRouter()
@@ -297,6 +382,30 @@ export default function Step7Preview({ onBack }: StepProps) {
   const [phase, setPhase] = useState<PublishPhase>("idle")
   const [slug, setSlug] = useState("")
   const [errorMsg, setErrorMsg] = useState("")
+  const [tokenValid, setTokenValid] = useState<boolean | null>(null)
+  const [validatingToken, setValidatingToken] = useState(true)
+
+  // Validate the purchase token on mount and when it changes
+  const checkToken = useCallback(async () => {
+    const token = data.purchaseToken
+    if (!token) {
+      setTokenValid(false)
+      setValidatingToken(false)
+      return
+    }
+    setValidatingToken(true)
+    try {
+      const isValid = await validateToken(token)
+      setTokenValid(isValid)
+    } catch {
+      setTokenValid(false)
+    }
+    setValidatingToken(false)
+  }, [data.purchaseToken])
+
+  useEffect(() => {
+    checkToken()
+  }, [checkToken])
 
   const handlePublish = async () => {
     setPhase("uploading")
@@ -333,6 +442,11 @@ export default function Step7Preview({ onBack }: StepProps) {
         return
       }
 
+      // Mark token as used after successful publish
+      if (data.purchaseToken) {
+        await markTokenAsUsed(data.purchaseToken)
+      }
+
       await new Promise((r) => setTimeout(r, 600))
       setSlug(result.slug)
       setPhase("done")
@@ -345,6 +459,8 @@ export default function Step7Preview({ onBack }: StepProps) {
 
   const completeness = [data.personName, data.coverPhotoUrl, data.song, data.relationshipStart, data.message, data.galleryPhotoUrls.length > 0].filter(Boolean).length
   const pct = Math.round((completeness / 6) * 100)
+
+  const showPaymentGate = !validatingToken && !tokenValid && phase === "idle"
 
   return (
     <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -24 }}
@@ -397,8 +513,10 @@ export default function Step7Preview({ onBack }: StepProps) {
         )}
 
         {phase !== "done" && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="relative">
             <PhoneFrame><PreviewContent /></PhoneFrame>
+            {/* Payment gate overlay on the phone frame */}
+            {showPaymentGate && <PaymentGate />}
           </motion.div>
         )}
 
@@ -423,11 +541,35 @@ export default function Step7Preview({ onBack }: StepProps) {
 
         {phase === "idle" && (
           <div className="flex flex-col gap-3">
-            <motion.button onClick={handlePublish} whileHover={{ scale: 1.03, boxShadow: `0 0 50px rgba(236,72,153,0.6)` }} whileTap={{ scale: 0.97 }}
-              className="w-full py-5 rounded-2xl text-base font-bold text-white cursor-pointer"
-              style={{ background: `linear-gradient(135deg, ${PINK} 0%, ${PURPLE} 100%)`, boxShadow: `0 0 30px rgba(236,72,153,0.45)` }}>
-              Publicar e Compartilhar
-            </motion.button>
+            {validatingToken ? (
+              <div className="flex items-center justify-center gap-3 py-5">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+                  className="w-5 h-5 rounded-full border-2 border-transparent"
+                  style={{ borderTopColor: PINK, borderRightColor: PURPLE }}
+                />
+                <span className="text-sm text-muted-foreground">Verificando pagamento...</span>
+              </div>
+            ) : tokenValid ? (
+              <motion.button onClick={handlePublish} whileHover={{ scale: 1.03, boxShadow: `0 0 50px rgba(236,72,153,0.6)` }} whileTap={{ scale: 0.97 }}
+                className="w-full py-5 rounded-2xl text-base font-bold text-white cursor-pointer"
+                style={{ background: `linear-gradient(135deg, ${PINK} 0%, ${PURPLE} 100%)`, boxShadow: `0 0 30px rgba(236,72,153,0.45)` }}>
+                Publicar e Compartilhar
+              </motion.button>
+            ) : (
+              <motion.a
+                href={CHECKOUT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ scale: 1.03, boxShadow: `0 0 50px rgba(236,72,153,0.6)` }}
+                whileTap={{ scale: 0.97 }}
+                className="w-full py-5 rounded-2xl text-base font-bold text-white cursor-pointer text-center block"
+                style={{ background: `linear-gradient(135deg, ${PINK} 0%, ${PURPLE} 100%)`, boxShadow: `0 0 30px rgba(236,72,153,0.45)` }}
+              >
+                Desbloquear por R$19,90 ♥
+              </motion.a>
+            )}
             <motion.button onClick={onBack} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
               className="w-full py-3.5 rounded-2xl text-sm font-semibold text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
