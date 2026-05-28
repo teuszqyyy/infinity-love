@@ -18,6 +18,7 @@ export interface FormData {
   message: string
   galleryPhotos: File[]
   galleryPhotoUrls: string[]
+  purchaseToken: string
 }
 
 interface FormContextValue {
@@ -42,6 +43,7 @@ const defaultData: FormData = {
   message: "",
   galleryPhotos: [],
   galleryPhotoUrls: [],
+  purchaseToken: "",
 }
 
 export function FormProvider({ children }: { children: React.ReactNode }) {
