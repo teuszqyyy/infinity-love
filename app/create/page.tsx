@@ -1,8 +1,9 @@
 "use client"
 
 import { motion, AnimatePresence } from "framer-motion"
-import { useState } from "react"
-import { FormProvider } from "./form-context"
+import { useState, useEffect, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
+import { FormProvider, useFormData } from "./form-context"
 import ProgressBar from "./progress-bar"
 import Step1Name from "./steps/step-1-name"
 import Step2Cover from "./steps/step-2-cover"
@@ -27,6 +28,20 @@ const slideVariants = {
     x: dir > 0 ? -48 : 48,
     opacity: 0,
   }),
+}
+
+function TokenLoader() {
+  const searchParams = useSearchParams()
+  const { update } = useFormData()
+  const token = searchParams.get("token")
+
+  useEffect(() => {
+    if (token) {
+      update({ purchaseToken: token })
+    }
+  }, [token, update])
+
+  return null
 }
 
 function CreateFlow() {
@@ -58,6 +73,10 @@ function CreateFlow() {
           background: "radial-gradient(ellipse 100% 80% at 50% -20%, rgba(236,72,153,0.06) 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 90% 90%, rgba(168,85,247,0.05) 0%, transparent 55%)",
         }}
       />
+
+      <Suspense fallback={null}>
+        <TokenLoader />
+      </Suspense>
 
       <ProgressBar step={step} total={TOTAL_STEPS} />
 
